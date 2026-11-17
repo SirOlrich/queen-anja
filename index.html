@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Queen Anja</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Queen Anja">
+<meta name="theme-color" content="#efedf5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#17141f" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Figtree:wght@400;600;700&display=swap">
+<style>
+/* Layout: eine Spalte, Thron-Kopf (Rang) → Stufenwahl → Brett → Aktionen. Brett ist das einzige "Objekt". */
+:root{
+  --bg:#efedf5; --surface:#fbfaff; --ink:#221d33; --muted:#6a6380; --line:#d8d3e6;
+  --gold:#b8862b; --gold-soft:#f1e3c2; --plum:#5b3c88; --bad:#c2384a;
+  --grid:#2a2340; --thin:rgba(42,35,64,.22);
+  --display:"Marcellus SC","Trajan Pro",Georgia,serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#17141f; --surface:#221e2e; --ink:#eeeaf7; --muted:#a59fb8; --line:#3a3449;
+  --gold:#e0b157; --gold-soft:#3d3221; --plum:#b9a0e6; --bad:#ff6b7d; --grid:#0d0b13; --thin:rgba(13,11,19,.35); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#17141f; --surface:#221e2e; --ink:#eeeaf7; --muted:#a59fb8; --line:#3a3449;
+  --gold:#e0b157; --gold-soft:#3d3221; --plum:#b9a0e6; --bad:#ff6b7d; --grid:#0d0b13; --thin:rgba(13,11,19,.35); color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{height:100%;background:var(--bg);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.4;overflow:hidden;
+  padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));padding-block:8px;
+  -webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+input{-webkit-user-select:text;user-select:text}
+.wrap{max-width:560px;height:100%;margin:0 auto;display:flex;flex-direction:column;gap:8px}
+header{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{font-family:var(--display);font-weight:400;font-size:24px;line-height:1;margin:0;letter-spacing:.02em;white-space:nowrap}
+h1 span{color:var(--gold)}
+.rank{text-align:right;min-width:0;line-height:1.15}
+.rank b{font-family:var(--display);font-weight:400;font-size:15px;color:var(--plum)}
+.rank small{color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums;margin-left:6px}
+.bar{height:3px;background:var(--line);border-radius:2px;margin-top:4px;overflow:hidden;width:110px;margin-left:auto}
+.bar i{display:block;height:100%;background:var(--gold);width:0;transition:width .6s}
+.row2{flex:none;display:flex;align-items:center;gap:8px}
+.seg{flex:1;display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:2px;gap:2px}
+.seg button{all:unset;cursor:pointer;text-align:center;padding:5px 2px;border-radius:7px;font-weight:600;font-size:13px;color:var(--muted);white-space:nowrap}
+.seg button small{font-weight:400;font-size:11px;font-variant-numeric:tabular-nums;margin-left:3px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.seg button:focus-visible,.btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.meta{color:var(--muted);font-size:12px;white-space:nowrap;text-align:right;line-height:1.15;font-variant-numeric:tabular-nums}
+.meta strong{display:block;font-family:var(--display);font-weight:400;font-size:15px;color:var(--ink)}
+.boardbox{flex:1 1 auto;min-height:0;position:relative;display:grid;place-items:center;container-type:size}
+.board{position:relative;width:100%;aspect-ratio:1;display:grid;border:3px solid var(--grid);border-radius:8px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;background:var(--grid)}
+@supports (width:1cqh){.board{width:min(100cqw,100cqh)}}
+.board.fixed{width:auto;aspect-ratio:auto}
+.cell{position:relative;display:grid;place-items:center;border:0 solid var(--grid);cursor:pointer;min-width:0;min-height:0;overflow:hidden}
+.cell.t{border-top-width:2px}.cell.l{border-left-width:2px}
+.cell.tt{box-shadow:inset 0 1px 0 var(--thin)}.cell.ll{box-shadow:inset 1px 0 0 var(--thin)}.cell.tt.ll{box-shadow:inset 0 1px 0 var(--thin),inset 1px 0 0 var(--thin)}
+.cell svg{position:absolute;inset:0;margin:auto;width:62%;height:62%}
+.cell .x{width:28%;height:28%;color:#3a3150;opacity:.55}
+.cell.q svg.crown{color:#241c38;filter:drop-shadow(0 1px 0 rgba(255,255,255,.5))}
+.cell.bad::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(194,56,74,.38) 0 4px,transparent 4px 9px);pointer-events:none}
+.cell.q.badq svg.crown{color:#b0192f}
+.cell.hint::before{content:"";position:absolute;inset:3px;border:3px solid #b8862b;border-radius:6px;animation:pulse 1s ease-in-out infinite;pointer-events:none}
+.cell.ghost svg.crown{color:#7a5410;opacity:.45}
+.cell.farea::after{content:"";position:absolute;inset:0;background:rgba(194,56,74,.28);box-shadow:inset 0 0 0 2px rgba(194,56,74,.6);pointer-events:none}
+.cell.harea::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 3px rgba(184,134,43,.95);pointer-events:none}
+@keyframes pulse{50%{opacity:.25;transform:scale(.9)}}
+.cell.pop svg{animation:pop .25s ease-out}
+@keyframes pop{from{transform:scale(.4)}}
+.board.won .cell.q svg.crown{color:#7a5410;animation:shine .9s ease-out both}
+@keyframes shine{40%{transform:scale(1.25)}}
+.status{height:5.6em;overflow:hidden;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;flex:none;font-size:13px;line-height:1.4;color:var(--muted);text-wrap:balance}
+.status.warn{color:var(--bad)}
+.status.tip{color:var(--ink)}
+.actions{flex:none;display:flex;gap:8px}
+.btn{all:unset;cursor:pointer;text-align:center;padding:7px 12px;border-radius:9px;font-weight:600;font-size:13px;border:1px solid var(--line);background:var(--surface);color:var(--ink);white-space:nowrap}
+.btn.primary{background:var(--gold-soft);border-color:var(--gold)}
+.btn small{font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums}
+.actions .grow{flex:1}
+.lock{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:16px;background:var(--surface);border:1px solid var(--gold);border-radius:12px}
+.lock svg{width:56px;height:56px;color:var(--gold)}
+.lock h2{font-family:var(--display);font-weight:400;font-size:24px;margin:0;text-wrap:balance}
+.lock p{margin:0;color:var(--muted);text-wrap:balance}
+.card .limit{font-weight:600;color:var(--bad);font-size:15px}
+.loading{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--display);color:var(--muted)}
+.card ul{margin:0;padding-left:18px;text-align:left;color:var(--muted);font-size:14px}
+.card li{margin:4px 0}
+/* Sieg-Dialog */
+.overlay{position:fixed;inset:0;background:rgba(15,10,25,.55);display:grid;place-items:center;z-index:20;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.card{background:var(--surface);color:var(--ink);border-radius:18px;padding:26px 22px 20px;max-width:380px;width:100%;text-align:center;display:flex;flex-direction:column;gap:12px;border:1px solid var(--gold);animation:rise .4s ease-out}
+@keyframes rise{from{transform:translateY(20px);opacity:0}}
+.card .big{width:64px;height:64px;margin:0 auto;color:var(--gold)}
+.card h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0;text-wrap:balance}
+.card p{margin:0;font-size:16px;text-wrap:balance}
+.card .gain{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.card .up{font-family:var(--display);color:var(--plum);font-size:18px}
+/* Spielstand-Dialog */
+#stand .card{max-height:100%;overflow:auto;gap:14px}
+.field{display:flex;flex-direction:column;gap:5px;text-align:left}
+.field label{font-size:13px;font-weight:600}
+.field small{font-size:12px;color:var(--muted)}
+.inrow{display:flex;gap:8px}
+.inrow input{flex:1;min-width:0;font:inherit;font-size:16px;padding:7px 10px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);font-variant-numeric:tabular-nums}
+.card .msg{font-size:13px;min-height:1.4em;color:var(--muted)}
+.card .msg.bad{color:var(--bad)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Queen <span>Anja</span></h1>
+    <div class="rank"><b id="rankName">Hofdame</b><small id="rankPts">0 Punkte</small><div class="bar"><i id="rankBar"></i></div></div>
+  </header>
+  <div class="row2">
+    <div class="seg" role="group" aria-label="Schwierigkeit">
+      <button id="d-leicht" data-d="leicht">Leicht</button>
+      <button id="d-schwer" data-d="schwer">Schwer</button>
+      <button id="d-koenig" data-d="koenig">Königlich</button>
+    </div>
+    <div class="meta"><strong id="lvl">Level 1</strong><span id="solvedInfo"></span></div>
+  </div>
+  <div class="boardbox"><div class="board" id="board" aria-label="Spielfeld"></div><div class="loading" id="loading" hidden>Das Reich wird vermessen …</div><div class="lock" id="lock" hidden><svg viewBox="0 0 24 24"><use href="#crown"/></svg><h2>Stopp, du Suchti - für heute ist Schluss</h2><p>Morgen gibt es wieder 5 Rätsel.</p></div></div>
+  <div class="status" id="status" aria-live="polite"></div>
+  <div class="actions">
+    <button class="btn primary grow" id="hintBtn">Hinweis <small id="hintCount"></small></button>
+    <button class="btn grow" id="clearBtn">Leeren</button>
+    <button class="btn" id="saveBtn">Spielstand</button>
+    <button class="btn" id="rulesBtn" aria-label="Regeln">?</button>
+  </div>
+</div>
+<div class="overlay" id="rules" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
+    <h2 id="rulesTitle">Regeln</h2>
+    <ul>
+      <li>In jede Zeile genau eine Krone.</li>
+      <li>In jede Spalte genau eine Krone.</li>
+      <li>In jede Farbregion genau eine Krone.</li>
+      <li>Kronen dürfen sich nicht berühren, auch nicht diagonal.</li>
+      <li>Einmal tippen setzt ein X, zweimal eine Krone, dreimal leert das Feld.</li>
+      <li>Über leere Felder wischen setzt mehrere X. Wischen, das auf einem X beginnt, entfernt X.</li>
+    </ul>
+    <button class="btn primary" id="rulesClose">Verstanden</button>
+  </div>
+</div>
+<div class="overlay" id="stand" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="standTitle">
+    <h2 id="standTitle">Spielstand</h2>
+    <div class="field"><label for="lvlIn">Level wählen · <span id="standDiff">Leicht</span></label>
+      <div class="inrow"><input id="lvlIn" type="number" inputmode="numeric" min="1" max="9999"><button class="btn primary" id="lvlSet">Springen</button></div>
+      <small>Gilt für die gerade gewählte Stufe.</small></div>
+    <div class="field"><label for="codeOut">Dein Sicherungscode</label>
+      <div class="inrow"><input id="codeOut" readonly><button class="btn" id="codeCopy">Kopieren</button></div>
+      <small>Enthält Level, Punkte und Rang. Gut aufheben, damit lässt sich alles wiederherstellen.</small></div>
+    <div class="field"><label for="codeIn">Code einlösen</label>
+      <div class="inrow"><input id="codeIn" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="QA-…"><button class="btn" id="codeLoad">Laden</button></div></div>
+    <p class="msg" id="standMsg" aria-live="polite"></p>
+    <button class="btn" id="standClose">Schließen</button>
+  </div>
+</div>
+<div class="overlay" id="win" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="winTitle">
+    <svg class="big" viewBox="0 0 24 24"><use href="#crown"/></svg>
+    <h2 id="winTitle">Gelöst!</h2>
+    <p id="winText"></p>
+    <div class="up" id="winRank" hidden></div>
+    <div class="limit" id="winLimit" hidden></div>
+    <div class="gain" id="winGain"></div>
+    <button class="btn primary" id="nextBtn">Nächstes Level</button>
+  </div>
+</div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="crown" viewBox="0 0 24 24"><path fill="currentColor" d="M3 8.2l4.3 3.6L12 4.5l4.7 7.3L21 8.2l-1.8 10.3H4.8L3 8.2zM5 20h14v1.6H5z"/><circle fill="currentColor" cx="3" cy="7.5" r="1.4"/><circle fill="currentColor" cx="21" cy="7.5" r="1.4"/><circle fill="currentColor" cx="12" cy="3.6" r="1.4"/></symbol>
+  <symbol id="xmark" viewBox="0 0 10 10"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+</svg>
+<script id="logic">
+// ===== Queen Anja: Generator, Löser, Hinweise =====
+function rng32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function hashStr(s){let h=1779033703^s.length;for(let i=0;i<s.length;i++){h=Math.imul(h^s.charCodeAt(i),3432918353);h=h<<13|h>>>19}h=Math.imul(h^h>>>16,2246822507);h=Math.imul(h^h>>>13,3266489909);return(h^h>>>16)>>>0}
+function shuffle(a,R){for(let i=a.length-1;i>0;i--){const j=Math.floor(R()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+function placeQueens(n,R){
+  const cols=new Array(n),used=new Array(n).fill(false);
+  (function bt(r){if(r===n)return true;
+    for(const c of shuffle([...Array(n).keys()],R)){
+      if(used[c]||(r>0&&Math.abs(cols[r-1]-c)<=1))continue;
+      used[c]=true;cols[r]=c;if(bt(r+1))return true;used[c]=false}
+    return false})(0);
+  return cols;
+}
+
+function growRegions(n,cols,R){
+  const N=n*n,reg=new Int8Array(N).fill(-1),w=[];
+  for(let r=0;r<n;r++){reg[r*n+cols[r]]=r;w.push(0.25+R()*R()*2.5)}
+  let left=N-n;
+  while(left>0){
+    const pairs=[];let tot=0;
+    for(let i=0;i<N;i++){if(reg[i]>=0)continue;const r=(i/n)|0,c=i%n;const seen=[];
+      if(r>0&&reg[i-n]>=0)seen.push(reg[i-n]);if(r<n-1&&reg[i+n]>=0)seen.push(reg[i+n]);
+      if(c>0&&reg[i-1]>=0)seen.push(reg[i-1]);if(c<n-1&&reg[i+1]>=0)seen.push(reg[i+1]);
+      for(const g of seen){pairs.push(i,g);tot+=w[g]}}
+    let x=R()*tot,k=0;
+    for(;k<pairs.length-2;k+=2){x-=w[pairs[k+1]];if(x<=0)break}
+    reg[pairs[k]]=pairs[k+1];left--;
+  }
+  return reg;
+}
+
+function countSolutions(n,reg,limit){
+  let count=0,sol=null;const sols=[];const cols=new Array(n);
+  (function bt(r,colMask,regMask,prev){
+    if(count>=limit)return;
+    if(r===n){count++;sols.push(cols.slice());if(!sol)sol=cols.slice();return}
+    for(let c=0;c<n;c++){
+      if(colMask&(1<<c))continue;if(r>0&&Math.abs(prev-c)<=1)continue;
+      const g=reg[r*n+c];if(regMask&(1<<g))continue;
+      cols[r]=c;bt(r+1,colMask|(1<<c),regMask|(1<<g),c)}
+  })(0,0,0,-9);
+  return {count,sol,sols};
+}
+function regionConnectedWithout(n,reg,cell){
+  const g=reg[cell],cells=[];for(let i=0;i<n*n;i++)if(reg[i]===g&&i!==cell)cells.push(i);
+  if(!cells.length)return false;
+  const seen=new Set([cells[0]]),st=[cells[0]];
+  while(st.length){const i=st.pop(),r=(i/n)|0,c=i%n;
+    for(const j of [r>0?i-n:-1,r<n-1?i+n:-1,c>0?i-1:-1,c<n-1?i+1:-1])
+      if(j>=0&&j!==cell&&reg[j]===g&&!seen.has(j)){seen.add(j);st.push(j)}}
+  return seen.size===cells.length;
+}
+function nbRegions(n,reg,i){const r=(i/n)|0,c=i%n,o=new Set();
+  for(const j of [r>0?i-n:-1,r<n-1?i+n:-1,c>0?i-1:-1,c<n-1?i+1:-1])if(j>=0&&reg[j]!==reg[i])o.add(reg[j]);return [...o]}
+// Region so umbauen, dass nur noch die Wunschlösung bleibt
+function makeUnique(n,reg,sol,R){
+  for(let it=0;it<80;it++){
+    const {count,sols}=countSolutions(n,reg,3);if(count===1)return true;
+    const alt=sols.find(a=>a.some((c,r)=>c!==sol[r]));if(!alt)return false;
+    const rows=shuffle([...Array(n).keys()].filter(r=>alt[r]!==sol[r]),R);let done=false;
+    for(const r of rows){const cell=r*n+alt[r],nb=nbRegions(n,reg,cell);
+      if(!nb.length||!regionConnectedWithout(n,reg,cell))continue;
+      reg[cell]=nb[Math.floor(R()*nb.length)];done=true;break}
+    if(!done)return false;
+  }
+  return false;
+}
+// Logischer Löser. Gibt Schritte zurück: {kind:'q'|'x', cells, tech, reason}
+function makeUnits(n,reg){
+  const rows=[],cols=[],regs=[];
+  for(let i=0;i<n;i++){rows.push([]);cols.push([]);regs.push([])}
+  for(let i=0;i<n*n;i++){rows[(i/n)|0].push(i);cols[i%n].push(i);regs[reg[i]].push(i)}
+  return {rows,cols,regs};
+}
+function attacked(n,reg,c){ // Felder, die eine Krone auf c ausschließt
+  const out=[],r=(c/n)|0,k=c%n;
+  for(let i=0;i<n*n;i++){if(i===c)continue;const ri=(i/n)|0,ki=i%n;
+    if(ri===r||ki===k||reg[i]===reg[c]||(Math.abs(ri-r)<=1&&Math.abs(ki-k)<=1))out.push(i)}
+  return out;
+}
+function logicSolve(n,reg,startQueens,opts){
+  opts=opts||{};const maxAllowed=opts.maxTech||5;
+  const N=n*n,U=makeUnits(n,reg);
+  const unitList=[];U.rows.forEach((u,i)=>unitList.push({t:'row',i,c:u}));U.cols.forEach((u,i)=>unitList.push({t:'col',i,c:u}));U.regs.forEach((u,i)=>unitList.push({t:'reg',i,c:u}));
+  const ATT=[];for(let c=0;c<N;c++)ATT.push(attacked(n,reg,c));
+  const lineOf={row:c=>(c/n)|0,col:c=>c%n,reg:c=>reg[c]};
+  const lines={row:U.rows,col:U.cols,reg:U.regs};
+  const combos=[['reg','row'],['reg','col'],['row','reg'],['col','reg']];
+  function mk(){return {cand:new Uint8Array(N).fill(1),queen:new Uint8Array(N),nq:0}}
+  function clone(s){return {cand:s.cand.slice(),queen:s.queen.slice(),nq:s.nq}}
+  function place(s,c){s.queen[c]=1;s.nq++;s.cand[c]=0;for(const a of ATT[c])s.cand[a]=0}
+  function hasQ(s,u){for(const c of u.c)if(s.queen[c])return true;return false}
+  function cands(s,u){const o=[];for(const c of u.c)if(s.cand[c])o.push(c);return o}
+  function failUnit(s){for(const u of unitList)if(!hasQ(s,u)&&cands(s,u).length===0)return u;return null}
+  function broken(s){return !!failUnit(s)}
+  // Gedankenspiel für Hinweise: Krone auf c annehmen, Folgeschritte mitschreiben bis zum Widerspruch
+  function sim(s,c,lim){const t=clone(s);place(t,c);const chain=[];let g=0;
+    while(g++<60){const fu=failUnit(t);if(fu)return {chain,fail:fu};
+      const r=step(t,lim);if(r==='X')return {chain,fail:failUnit(t)};
+      if(r===null||t.nq===n)return null;chain.push(r)}
+    return null}
+  // ein Schritt; gibt Schritt-Objekt, null (kein Fortschritt) oder 'X' (Widerspruch)
+  function step(s,lim){
+    if(broken(s))return 'X';
+    for(const u of unitList){if(hasQ(s,u))continue;const cs=cands(s,u);
+      if(cs.length===1){place(s,cs[0]);return {kind:'q',cells:[cs[0]],tech:1,unit:u}}}
+    if(lim<2)return null;
+    const open={row:[],col:[],reg:[]};
+    for(const u of unitList)if(!hasQ(s,u))open[u.t].push({u,cs:cands(s,u)});
+    for(let k=1;k<=(lim>=3?4:1);k++){
+      for(const [src,dst] of combos){
+        const S=open[src];if(S.length<=k)continue;const idx=[];let found=null;
+        (function tr(start,depth){if(found)return;
+          if(depth===k){const ls=new Set(),mem=new Set();
+            for(const j of idx)for(const c of S[j].cs){ls.add(lineOf[dst](c));mem.add(c)}
+            if(ls.size!==k)return;const el=[];
+            for(const L of ls)for(const c of lines[dst][L])if(s.cand[c]&&!mem.has(c))el.push(c);
+            if(el.length)found={el,src:idx.map(j=>S[j].u),dst,lines:[...ls]};return}
+          for(let j=start;j<S.length&&!found;j++){idx.push(j);tr(j+1,depth+1);idx.pop()}})(0,0);
+        if(found){for(const c of found.el)s.cand[c]=0;return {kind:'x',cells:found.el,tech:k===1?2:3,src:found.src,dst:found.dst,lines:found.lines}}
+      }
+    }
+    if(lim<4)return null;
+    for(let c=0;c<N;c++){if(!s.cand[c])continue;const att=new Set(ATT[c]);
+      for(const u of unitList){if(hasQ(s,u)||u.c.includes(c))continue;
+        if(cands(s,u).every(x=>att.has(x))){s.cand[c]=0;return {kind:'x',cells:[c],tech:4,unit:u,blocked:cands(s,u)}}}}
+    if(lim<5)return null;
+    // T5: Annahme "Krone hier" führt mit einfacher Logik zum Widerspruch
+    if(opts.explain){ // kürzeste, möglichst einfache Kette suchen
+      for(const l of [1,3]){let best=null;
+        for(let c=0;c<N;c++){if(!s.cand[c])continue;const r=sim(s,c,l);
+          if(r&&(!best||r.chain.length<best.chain.length))best={c,...r}}
+        if(best){s.cand[best.c]=0;return {kind:'x',cells:[best.c],tech:5,chain:best.chain,fail:best.fail}}}
+      return null}
+    for(let c=0;c<N;c++){if(!s.cand[c])continue;const t=clone(s);place(t,c);let r,g=0;
+      while(g++<60){r=step(t,3);if(r==='X'||r===null||t.nq===n)break}
+      if(r==='X'){s.cand[c]=0;return {kind:'x',cells:[c],tech:5}}}
+    return null;
+  }
+  const s=mk();for(const q of startQueens)place(s,q);
+  if(opts.xs)for(const c of opts.xs)s.cand[c]=0;
+  if(opts.oneStep){const r=step(s,maxAllowed);return {step:(r==='X'?null:r)}}
+  const steps=[];let maxTech=0;const cnt=[0,0,0,0,0,0];let guard=0;
+  while(s.nq<n&&guard++<800){
+    const r=step(s,maxAllowed);
+    if(r==='X'||r===null)return {ok:false,steps,maxTech,cnt};
+    steps.push(r);cnt[r.tech]++;maxTech=Math.max(maxTech,r.tech);
+    if(opts.stopAtQueen&&r.kind==='q')return {ok:true,steps,maxTech,cnt,partial:true};
+  }
+  return {ok:s.nq===n,steps,maxTech,cnt,queen:s.queen};
+}
+
+// Nur direkte Schlüsse (Techniken 1–4), nie Was-wäre-wenn-Ketten
+const DIRECT=4;
+function score(L){const c=L.cnt;return c[4]*8+c[3]*3+c[2]}
+const DIFFS={
+  leicht:{n:7,label:'Leicht',pts:3,target:L=>L.maxTech<=2&&L.cnt[2]>=1},
+  schwer:{n:7,label:'Schwer',pts:4,target:L=>L.maxTech>=3&&L.cnt[3]+L.cnt[4]>=1&&L.cnt[3]+L.cnt[4]<=3},
+  koenig:{n:7,label:'Königlich',pts:5,target:L=>L.cnt[3]>=1&&L.cnt[4]>=3}
+};
+function generate(diff,level){
+  const D=DIFFS[diff],n=D.n,R=rng32(hashStr('anja3-'+diff+'-'+level));
+  let best=null;
+  for(let tries=0;tries<6000;tries++){
+    const sol=placeQueens(n,R),reg=growRegions(n,sol,R);
+    if(!makeUnique(n,reg,sol,R))continue;
+    const L=logicSolve(n,reg,[],{maxTech:DIRECT});if(!L.ok)continue;
+    const p={n,reg:Array.from(reg),sol,tech:L.maxTech,cnt:L.cnt};
+    if(D.target(L))return p;
+    if(!best||score(L)>best.sc)best={p,sc:score(L)};
+  }
+  return best.p;
+}
+</script>
+<script>
+// ===== Siegtexte (Entwürfe – werden mit Oliver gemeinsam ersetzt) =====
+const VICTORY_TEXTS=[
+  "Majestät, das Reich ist geordnet.",
+  "Anja regiert. Fehlerfrei, wie immer.",
+  "Jede Krone an ihrem Platz. Das Volk jubelt.",
+  "Der Hofstaat verneigt sich vor dir, Anja.",
+  "So sieht königliche Ordnung aus.",
+  "Ein weiteres Reich unter deiner Krone.",
+  "Me Lady de Anja rulz",
+  "Madame und Sir Olrich zollen Respekt",
+  "Die Crölfe jubeln Euch zu, Hoheit"
+];
+const RANKS=[[0,'Hofdame'],[5,'Baronin'],[15,'Gräfin'],[30,'Fürstin'],[55,'Herzogin'],[90,'Erzherzogin'],[140,'Königin'],[220,'Kaiserin']];
+const COLORS=[['#F2957F','Koralle'],['#F5CD5B','Gold'],['#9FD27E','Grün'],['#6FCFCB','Türkis'],['#B9A2EC','Lavendel'],['#F39BC7','Pink'],['#DCCFB4','Sand'],['#86A9F2','Blau'],['#BDBBC7','Grau'],['#C8EBD8','Mint']];
+
+const store={get(k,d){try{const v=localStorage.getItem('qa-'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem('qa-'+k,JSON.stringify(v))}catch(e){}}};
+const S={diff:store.get('diff2','leicht'),level:store.get('level3',{leicht:1,schwer:1,koenig:1}),points:store.get('points',0),
+  solved:store.get('solved3',{leicht:0,schwer:0,koenig:0}),hints:store.get('hints',0)};
+if(!DIFFS[S.diff])S.diff='leicht';
+let P=null,marks=[],colorOf=[],won=false,lockShown=false;
+// Suchtbremse: höchstens 5 gelöste Rätsel pro Kalendertag (Gerätedatum)
+const DAILY_LIMIT=5;
+function today(){const d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()}
+function daily(){const v=store.get('daily',null);return v&&v.d===today()?v.n:0}
+function addDaily(){const n=daily()+1;store.set('daily',{d:today(),n});return n}
+const cache={};
+const $=id=>document.getElementById(id);
+const boardEl=$('board');
+
+function rankInfo(p){let i=0;while(i+1<RANKS.length&&p>=RANKS[i+1][0])i++;
+  const next=RANKS[i+1];return {name:RANKS[i][1],i,next,frac:next?(p-RANKS[i][0])/(next[0]-RANKS[i][0]):1}}
+function renderRank(){const r=rankInfo(S.points);$('rankName').textContent=r.name;
+  $('rankPts').textContent=S.points+' Punkte'+(r.next?' · '+r.next[1]+' ab '+r.next[0]:'');
+  $('rankBar').style.width=Math.round(r.frac*100)+'%'}
+
+// Rätsel im Hintergrund erzeugen (Web Worker), Ausweichlösung: im Hauptprozess
+let worker=null;const waiting={};
+try{const src=document.getElementById('logic').textContent+"\nonmessage=e=>{const{d,l}=e.data;postMessage({d,l,p:generate(d,l)})}";
+  worker=new Worker(URL.createObjectURL(new Blob([src],{type:'text/javascript'})));
+  worker.onmessage=e=>{const{d,l,p}=e.data,k=d+'-'+l;cache[k]=p;(waiting[k]||[]).forEach(f=>f(p));delete waiting[k]};
+  worker.onerror=()=>{worker=null}}catch(e){worker=null}
+function getPuzzle(d,l){const k=d+'-'+l;
+  if(cache[k])return Promise.resolve(cache[k]);
+  return new Promise(res=>{
+    if(waiting[k]){waiting[k].push(res);return}
+    if(worker){waiting[k]=[res];worker.postMessage({d,l});return}
+    setTimeout(()=>{cache[k]=generate(d,l);res(cache[k])},30)})}
+function prefetch(){getPuzzle(S.diff,S.level[S.diff]+1)}
+function load(){
+  won=false;hintMap=new Map();walk=null;showCount=false;if(typeof setHintBtn==='function')try{setHintBtn()}catch(e){}
+  $('nextBtn').textContent='Nächstes Level';
+  if(daily()>=DAILY_LIMIT){P=null;lockShown=true;$('lock').hidden=false;$('loading').hidden=true;boardEl.hidden=true;
+    document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.d===S.diff));
+    $('lvl').textContent='Level '+S.level[S.diff];$('solvedInfo').textContent='heute '+DAILY_LIMIT+'/'+DAILY_LIMIT;
+    setStatus('','');return}
+  lockShown=false;$('lock').hidden=true;
+  document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.d===S.diff));
+  const l=S.level[S.diff];$('lvl').textContent='Level '+l;
+  $('solvedInfo').textContent=S.solved[S.diff]+' gelöst · heute '+daily()+'/'+DAILY_LIMIT;
+  const k=S.diff+'-'+l,want=S.diff+'-'+l;
+  if(!cache[k]){P=null;$('loading').hidden=false;boardEl.hidden=true;setStatus('','')}
+  getPuzzle(S.diff,l).then(p=>{if(want!==S.diff+'-'+S.level[S.diff])return;show(p)});
+}
+function show(p){
+  $('loading').hidden=true;boardEl.hidden=false;
+  P=p;
+  const R=rng32(hashStr('farbe'+S.diff+S.level[S.diff]));
+  colorOf=shuffle([...Array(10).keys()],R).slice(0,P.n);
+  const saved=store.get('board',null);
+  marks=(saved&&saved.k==='v3-'+S.diff+'-'+S.level[S.diff])?saved.m:new Array(P.n*P.n).fill(0);
+  build();setStatus('Tippen: X · zweimal: Krone · wischen: mehrere X setzen oder entfernen.','');
+  check(false);prefetch();
+}
+function build(){
+  const n=P.n;boardEl.innerHTML='';boardEl.classList.remove('won');
+  for(let i=0;i<n*n;i++){const r=(i/n)|0,c=i%n,d=document.createElement('div');d.className='cell';d.dataset.i=i;
+    d.style.background=COLORS[colorOf[P.reg[i]]][0];
+    if(r>0)d.classList.add(P.reg[i-n]!==P.reg[i]?'t':'tt');
+    if(c>0)d.classList.add(P.reg[i-1]!==P.reg[i]?'l':'ll');
+    d.setAttribute('role','button');d.tabIndex=-1;
+    boardEl.appendChild(d);paint(i)}
+  sizeBoard();
+}
+// Brettgröße fest in ganzen Pixeln, nur bei Fenster-/Drehänderung neu
+let lastBox='';
+function sizeBoard(force){if(!P)return;const box=boardEl.parentElement,w=box.clientWidth,h=box.clientHeight;
+  const key=w+'x'+h+'x'+P.n;if(!force&&key===lastBox&&boardEl.classList.contains('fixed'))return;lastBox=key;
+  const cell=Math.max(20,Math.floor((Math.min(w,h)-6)/P.n));const s=cell*P.n+6;
+  boardEl.classList.add('fixed');boardEl.style.width=boardEl.style.height=s+'px';
+  boardEl.style.gridTemplateColumns=boardEl.style.gridTemplateRows=`repeat(${P.n},${cell}px)`}
+let rzT;window.addEventListener('resize',()=>{clearTimeout(rzT);rzT=setTimeout(()=>sizeBoard(true),150)});
+function paint(i,pop){const d=boardEl.children[i];if(!d)return;const m=marks[i];
+  const h=hintMap.get(i)||'',gh=h.includes('ghost')&&m!==2;
+  d.classList.toggle('q',m===2);d.classList.toggle('hint',h.includes('ring'));d.classList.toggle('harea',h.includes('area')&&!h.includes('farea'));d.classList.toggle('farea',h.includes('farea'));d.classList.toggle('ghost',gh);
+  d.innerHTML=(m===2||gh)?'<svg class="crown" viewBox="0 0 24 24"><use href="#crown"/></svg>':m===1?'<svg class="x" viewBox="0 0 10 10"><use href="#xmark"/></svg>':'';
+  if(pop&&m)d.classList.add('pop');else d.classList.remove('pop');
+  const r=((i/P.n)|0)+1,c=i%P.n+1;d.setAttribute('aria-label',`Zeile ${r}, Spalte ${c}, ${COLORS[colorOf[P.reg[i]]][1]}${m===2?', Krone':m===1?', X':''}`)}
+function save(){store.set('board',{k:'v3-'+S.diff+'-'+S.level[S.diff],m:marks})}
+function setStatus(t,cls){const s=$('status');s.textContent=t;s.className='status'+(cls?' '+cls:'')}
+
+function check(announce){
+  const n=P.n,qs=[];for(let i=0;i<n*n;i++)if(marks[i]===2)qs.push(i);
+  const bad=new Set(),badq=new Set();
+  const groups=[q=>(q/n)|0,q=>q%n,q=>P.reg[q]];
+  groups.forEach((f,gi)=>{const by={};qs.forEach(q=>(by[f(q)]=by[f(q)]||[]).push(q));
+    for(const k in by)if(by[k].length>1){by[k].forEach(q=>badq.add(q));
+      for(let i=0;i<n*n;i++)if(String(f(i))===k)bad.add(i)}});
+  for(const a of qs)for(const b of qs)if(a<b&&Math.abs(((a/n)|0)-((b/n)|0))<=1&&Math.abs(a%n-b%n)<=1){badq.add(a);badq.add(b)}
+  [...boardEl.children].forEach((d,i)=>{d.classList.toggle('bad',bad.has(i));d.classList.toggle('badq',badq.has(i))});
+  if(announce&&badq.size)setStatus('Diese Kronen kommen sich in die Quere.','warn');
+  if(qs.length===n&&!badq.size)win();
+}
+
+// Eingabe: Tippen schaltet leer → X → Krone → leer; Wischen setzt X
+let drag=null;
+boardEl.addEventListener('pointerdown',e=>{if(won)return;const c=e.target.closest('.cell');if(!c)return;
+  const i=+c.dataset.i;drag={start:i,moved:false,set:new Set([i]),startMark:marks[i]};boardEl.setPointerCapture(e.pointerId)});
+boardEl.addEventListener('pointermove',e=>{if(!drag)return;const el=document.elementFromPoint(e.clientX,e.clientY);const c=el&&el.closest&&el.closest('.cell');if(!c)return;
+  const i=+c.dataset.i;if(drag.set.has(i))return;drag.set.add(i);
+  if(drag.startMark===2)return;
+  const from=drag.startMark,to=from===0?1:0;
+  if(!drag.moved){drag.moved=true;if(marks[drag.start]===from){marks[drag.start]=to;paint(drag.start,true)}}
+  if(marks[i]===from){marks[i]=to;paint(i,true)}});
+function endDrag(){if(!drag)return;const d=drag;drag=null;
+  if(!d.moved){const i=d.start;marks[i]=(marks[i]+1)%3;clearHint();paint(i,true);save();check(true);
+    if(marks[i]===2&&!won&&!document.querySelector('.badq'))setStatus(' ','')}
+  else{clearHint();save();check(false)}}
+boardEl.addEventListener('pointerup',endDrag);boardEl.addEventListener('pointercancel',endDrag);
+function clearHint(){walk=null;setHintBtn();if(hintMap.size){const old=[...hintMap.keys()];hintMap=new Map();old.forEach(i=>paint(i))}}
+
+// Hinweis: immer der nächste Schritt, der vom sichtbaren Brett aus folgt
+const unitLabel=u=>u.t==='row'?`Zeile ${u.i+1}`:u.t==='col'?`Spalte ${u.i+1}`:`die Region ${COLORS[colorOf[u.i]][1]}`;
+const unitIn=u=>u.t==='reg'?`in der Region ${COLORS[colorOf[u.i]][1]}`:`in ${unitLabel(u)}`;
+let walk=null,showCount=false; // Schritt-für-Schritt-Erklärung eines Gedankenspiels
+function setHintBtn(){const b=$('hintBtn');
+  if(walk&&walk.idx<walk.steps.length-1)b.innerHTML=`Weiter <small>· zu ${walk.idx+2}/${walk.steps.length}</small>`;
+  else b.innerHTML=`Hinweis <small id="hintCount">${showCount?'· '+S.hints+' genutzt':''}</small>`}
+function showWalk(){const w=walk.steps[walk.idx];const old=[...hintMap.keys()];hintMap=new Map(w.list);
+  old.forEach(i=>paint(i));hintMap.forEach((_,i)=>paint(i));setStatus(w.txt,'tip');setHintBtn()}
+function buildWalk(st){const n=P.n,o=st.cells[0],ghosts=[o],steps=[],K=st.chain.length+1;
+  const free=u=>u.c.filter(x=>marks[x]!==1);
+  const base=()=>[[o,'ring ghost'],...ghosts.slice(1).map(g=>[g,'ghost'])];
+  const merge=(l,extra)=>{const m=new Map(l);for(const [c,v] of extra)m.set(c,(m.get(c)||'')+' '+v);return [...m]};
+  st.chain.forEach((r,k)=>{const pre=`${k+1}/${K} · `;
+    if(r.kind==='q'){const t=r.cells[0];
+      const lead=k===0?'Auf das umrandete Feld gehört ein X. Warum? Stell dir dort eine Krone vor. Dann bliebe':'Auch diese gedachte Krone sperrt Felder. Jetzt bliebe';
+      ghosts.push(t);
+      const gone=r.unit.c.filter(c=>c!==t&&marks[c]!==1).map(c=>[c,'farea']);
+      steps.push({list:merge(base(),[...r.unit.c.map(c=>[c,'area']),...gone]),txt:`${pre}${lead} ${unitIn(r.unit)} nur ein freies Feld. Dort müsste die nächste Krone hin.`})}
+    else{const src=(r.src||[r.unit]).filter(Boolean);
+      steps.push({list:merge(base(),[...src.flatMap(u=>u.c).map(c=>[c,'area']),...r.cells.map(c=>[c,'farea'])]),
+        txt:`${pre}${k===0?'Auf das umrandete Feld gehört ein X. Warum? Stell dir dort eine Krone vor. ':''}Dadurch fallen weitere Felder weg (rot markiert).`})}});
+  steps.push({list:merge(base(),st.fail.c.map(c=>[c,'farea'])),
+    txt:`${K}/${K} · Jetzt hätte ${unitLabel(st.fail)} kein freies Feld mehr. Das geht nicht. Also gehört auf das umrandete Feld ein X.`});
+  return steps}
+const lineLabel=(t,i)=>t==='row'?`Zeile ${i+1}`:t==='col'?`Spalte ${i+1}`:`Region ${COLORS[colorOf[i]][1]}`;
+const joinDe=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+' und '+a[a.length-1];
+const cap=t=>t.charAt(0).toUpperCase()+t.slice(1);
+let hintMap=new Map();
+$('hintBtn').addEventListener('click',()=>{if(won||!P)return;
+  if(walk&&walk.idx<walk.steps.length-1){walk.idx++;return showWalk()}
+  const n=P.n,sol=new Set(P.sol.map((c,r)=>r*n+c));clearHint();
+  for(let i=0;i<n*n;i++)if(marks[i]===2&&!sol.has(i))return giveHint([[i,'ring']],'Diese Krone gehört hier nicht hin.');
+  for(let i=0;i<n*n;i++)if(marks[i]===1&&sol.has(i))return giveHint([[i,'ring']],'Dieses X ist falsch. Hier gehört eine Krone hin.');
+  const qs=[],xs=[];for(let i=0;i<n*n;i++){if(marks[i]===2)qs.push(i);else if(marks[i]===1)xs.push(i)}
+  // Felder, die durch gesetzte Kronen blockiert, aber noch nicht markiert sind
+  const blocked=[];for(const q of qs)for(const a of attacked(n,P.reg,q))if(marks[a]===0&&!blocked.includes(a))blocked.push(a);
+  const st=logicSolve(n,P.reg,qs,{xs,oneStep:true,maxTech:DIRECT}).step;
+  if(!st){const miss=[...sol].find(i=>marks[i]!==2);if(miss!=null)giveHint([[miss,'ring']],'Hier gehört eine Krone hin.');return}
+  const area=c=>[c,'area'];
+  if(st.kind==='q'){const c=st.cells[0],u=st.unit;
+    const free=u.c.filter(x=>marks[x]===0&&!blocked.includes(x));
+    const txt=cap(free.length===1?`${unitIn(u)} ist nur noch dieses Feld frei. Hier gehört die Krone hin.`
+      :`${unitIn(u)} sind alle anderen Felder durch deine Kronen blockiert. Hier gehört die Krone hin.`);
+    return giveHint([...u.c.map(area),[c,'ring']],txt)}
+  if(st.tech<=3){const srcN=st.src.map(unitLabel),lin=st.lines.map(i=>lineLabel(st.dst,i));
+    const one=st.src.length===1;
+    const txt=`${cap(joinDe(srcN))} ${one?'liegt':'liegen'} komplett in ${joinDe(lin)}. Deshalb ${st.cells.length===1?'kann das markierte Feld':'können die markierten Felder'} keine Krone haben.`;
+    return giveHint([...st.src.flatMap(u=>u.c.filter(x=>marks[x]===0)).map(area),...st.cells.map(c=>[c,'ring'])],txt)}
+  if(st.tech===4){const c=st.cells[0];
+    return giveHint([...st.blocked.map(area),[c,'ring']],`Eine Krone hier würde alle freien Felder von ${unitLabel(st.unit)} blockieren. Also kommt hier ein X hin.`)}
+  if(st.chain&&st.fail){S.hints++;showCount=true;store.set('hints',S.hints);walk={steps:buildWalk(st),idx:0};return showWalk()}
+  giveHint([[st.cells[0],'ring']],'Eine Krone auf diesem Feld führt zu einem Widerspruch. Also kommt hier ein X hin.')});
+function giveHint(list,txt){S.hints++;showCount=true;store.set('hints',S.hints);hintMap=new Map(list);hintMap.forEach((_,i)=>paint(i));setStatus(txt,'tip');setHintBtn()}
+
+$('clearBtn').addEventListener('click',()=>{if(won||!P)return;marks.fill(0);hintMap=new Map();walk=null;setHintBtn();marks.forEach((_,i)=>paint(i));save();check(false);setStatus('Das Brett ist leer.','')});
+document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{S.diff=b.dataset.d;store.set('diff2',S.diff);store.set('board',null);load()}));
+
+function win(){won=true;boardEl.classList.add('won');
+  const before=rankInfo(S.points);S.points+=DIFFS[S.diff].pts;S.solved[S.diff]++;
+  store.set('points',S.points);store.set('solved3',S.solved);
+  const after=rankInfo(S.points);renderRank();
+  const t=VICTORY_TEXTS[hashStr(S.diff+S.level[S.diff])%VICTORY_TEXTS.length];
+  const dn=addDaily(),lim=$('winLimit');
+  lim.hidden=dn<DAILY_LIMIT-1;
+  lim.textContent=dn>=DAILY_LIMIT?'Stopp, du Suchti - für heute ist Schluss':'Eine Runde noch, dann ruft die Realität';
+  $('nextBtn').textContent=dn>=DAILY_LIMIT?'Für heute beenden':'Nächstes Level';
+  $('solvedInfo').textContent=S.solved[S.diff]+' gelöst · heute '+dn+'/'+DAILY_LIMIT;
+  $('winText').textContent=t;
+  $('winGain').textContent=`+${DIFFS[S.diff].pts} ${DIFFS[S.diff].pts===1?'Punkt':'Punkte'} · ${DIFFS[S.diff].label} · Level ${S.level[S.diff]}`;
+  const up=$('winRank');up.hidden=after.i===before.i;up.textContent='Neuer Rang: '+after.name;
+  $('winTitle').textContent=after.i>before.i?'Aufstieg!':'Gelöst!';
+  S.level[S.diff]++;store.set('level3',S.level);store.set('board',null);
+  setTimeout(()=>{$('win').hidden=false;$('nextBtn').focus()},900);
+}
+$('nextBtn').addEventListener('click',()=>{$('win').hidden=true;load()});
+// Seite über Mitternacht offen: beim Zurückkehren neu prüfen
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&lockShown&&daily()<DAILY_LIMIT)load()});
+
+$('rulesBtn').addEventListener('click',()=>{$('rules').hidden=false;$('rulesClose').focus()});
+$('rulesClose').addEventListener('click',()=>{$('rules').hidden=true});
+// ===== Spielstand: Level wählen, Sicherungscode =====
+const DK=Object.keys(DIFFS);
+function codeSum(a){let h=7;for(const v of a)h=(h*31+v)%97;return h}
+function makeCode(){const a=[...DK.map(k=>S.level[k]),S.points,...DK.map(k=>S.solved[k]),S.hints];return 'QA-'+a.join('-')+'-'+codeSum(a)}
+function readCode(t){const m=(t||'').trim().toUpperCase().replace(/\s+/g,'').match(/^QA-((?:\d{1,6}-){8})(\d{1,2})$/);if(!m)return null;
+  const a=m[1].slice(0,-1).split('-').map(Number);if(codeSum(a)!==+m[2])return null;
+  const [l1,l2,l3,p,s1,s2,s3,h]=a;if(!(l1>=1&&l2>=1&&l3>=1))return null;
+  return {l:{leicht:l1,schwer:l2,koenig:l3},p,s:{leicht:s1,schwer:s2,koenig:s3},h}}
+function standMsg(t,bad){const m=$('standMsg');m.textContent=t;m.className='msg'+(bad?' bad':'')}
+$('saveBtn').addEventListener('click',()=>{$('standDiff').textContent=DIFFS[S.diff].label;$('lvlIn').value=S.level[S.diff];
+  $('codeOut').value=makeCode();$('codeIn').value='';standMsg('');$('stand').hidden=false});
+$('standClose').addEventListener('click',()=>{$('stand').hidden=true});
+$('lvlSet').addEventListener('click',()=>{const v=parseInt($('lvlIn').value,10);
+  if(!(v>=1&&v<=9999))return standMsg('Bitte ein Level zwischen 1 und 9999 eingeben.',true);
+  S.level[S.diff]=v;store.set('level3',S.level);store.set('board',null);$('stand').hidden=true;load()});
+$('codeCopy').addEventListener('click',async()=>{const el=$('codeOut');
+  try{await navigator.clipboard.writeText(el.value);standMsg('Code kopiert.')}
+  catch(e){el.focus();el.select();try{el.setSelectionRange(0,el.value.length)}catch(_){}standMsg('Automatisch kopieren ging nicht. Der Code ist markiert, bitte selbst kopieren oder abschreiben.',true)}});
+$('codeLoad').addEventListener('click',()=>{const d=readCode($('codeIn').value);
+  if(!d)return standMsg('Dieser Code passt nicht. Bitte genau so eingeben, wie er angezeigt wurde.',true);
+  S.level=d.l;S.solved=d.s;S.points=d.p;S.hints=d.h;
+  store.set('level3',S.level);store.set('solved3',S.solved);store.set('points',S.points);store.set('hints',S.hints);store.set('board',null);
+  renderRank();$('stand').hidden=true;load()});
+renderRank();load();
+// ===== App: Offline-Speicher =====
+if('serviceWorker' in navigator)window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})});
+</script>
+</body>
+</html>
