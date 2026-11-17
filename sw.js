@@ -1,5 +1,5 @@
 // Offline-Speicher für Queen Anja. Bei jeder Änderung VERSION hochzählen.
-const VERSION = 'qa-v1';
+const VERSION = 'qa-v2';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {

@@ -575,9 +575,14 @@ $('rulesClose').addEventListener('click',()=>{$('rules').hidden=true});
 const DK=Object.keys(DIFFS);
 function codeSum(a){let h=7;for(const v of a)h=(h*31+v)%97;return h}
 function makeCode(){const a=[...DK.map(k=>S.level[k]),S.points,...DK.map(k=>S.solved[k]),S.hints];return 'QA-'+a.join('-')+'-'+codeSum(a)}
-function readCode(t){const m=(t||'').trim().toUpperCase().replace(/\s+/g,'').match(/^QA-((?:\d{1,6}-){8})(\d{1,2})$/);if(!m)return null;
-  const a=m[1].slice(0,-1).split('-').map(Number);if(codeSum(a)!==+m[2])return null;
-  const [l1,l2,l3,p,s1,s2,s3,h]=a;if(!(l1>=1&&l2>=1&&l3>=1))return null;
+// Tolerant einlesen: egal welche Striche, Leerzeichen oder unsichtbaren Zeichen beim Kopieren mitkommen
+function readCode(t){let s=String(t||'');try{s=s.normalize('NFKC')}catch(e){}
+  s=s.toUpperCase();const at=s.indexOf('QA');if(at>=0)s=s.slice(at+2);
+  const nums=s.split(/[^0-9]+/).filter(Boolean);
+  if(nums.length!==9)return {err:nums.length?`Der Code ist unvollständig: ${nums.length} statt 9 Zahlen erkannt.`:'Da ist kein Code drin. Bitte den Code einfügen.'};
+  const all=nums.map(Number),a=all.slice(0,8);
+  if(codeSum(a)!==all[8])return {err:'Eine Zahl im Code stimmt nicht. Bitte nochmal genau vergleichen.'};
+  const [l1,l2,l3,p,s1,s2,s3,h]=a;if(!(l1>=1&&l2>=1&&l3>=1))return {err:'Dieser Code passt nicht.'};
   return {l:{leicht:l1,schwer:l2,koenig:l3},p,s:{leicht:s1,schwer:s2,koenig:s3},h}}
 function standMsg(t,bad){const m=$('standMsg');m.textContent=t;m.className='msg'+(bad?' bad':'')}
 $('saveBtn').addEventListener('click',()=>{$('standDiff').textContent=DIFFS[S.diff].label;$('lvlIn').value=S.level[S.diff];
@@ -590,7 +595,7 @@ $('codeCopy').addEventListener('click',async()=>{const el=$('codeOut');
   try{await navigator.clipboard.writeText(el.value);standMsg('Code kopiert.')}
   catch(e){el.focus();el.select();try{el.setSelectionRange(0,el.value.length)}catch(_){}standMsg('Automatisch kopieren ging nicht. Der Code ist markiert, bitte selbst kopieren oder abschreiben.',true)}});
 $('codeLoad').addEventListener('click',()=>{const d=readCode($('codeIn').value);
-  if(!d)return standMsg('Dieser Code passt nicht. Bitte genau so eingeben, wie er angezeigt wurde.',true);
+  if(d.err)return standMsg(d.err,true);
   S.level=d.l;S.solved=d.s;S.points=d.p;S.hints=d.h;
   store.set('level3',S.level);store.set('solved3',S.solved);store.set('points',S.points);store.set('hints',S.hints);store.set('board',null);
   renderRank();$('stand').hidden=true;load()});
